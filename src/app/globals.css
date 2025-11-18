@@ -1,8 +1,8 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #05070f;
+  --foreground: #f8fafc;
 }
 
 @theme inline {
@@ -12,15 +12,54 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-slate-800;
+  }
+  body {
+    @apply bg-slate-950 text-slate-100 font-sans;
+    background: radial-gradient(circle at top, rgba(56, 189, 248, 0.12), transparent 45%),
+      radial-gradient(circle at 20% 20%, rgba(248, 113, 113, 0.1), transparent 35%),
+      radial-gradient(circle at 80% 0%, rgba(167, 139, 250, 0.08), transparent 40%), #030712;
+    min-height: 100vh;
+  }
+
+  ::selection {
+    @apply bg-cyan-500 text-slate-900;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-900;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-700 rounded;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .card {
+    @apply rounded-2xl border border-white/5 bg-slate-900/70 p-6 shadow-2xl shadow-cyan-500/5 backdrop-blur;
+  }
+
+  .btn-primary {
+    @apply rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2 font-semibold text-slate-900 transition hover:shadow-lg hover:shadow-cyan-500/30 disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply rounded-xl border border-white/10 px-4 py-2 text-slate-200 transition hover:border-white/30;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400;
+  }
+
+  .label {
+    @apply text-sm font-medium text-slate-300;
+  }
 }

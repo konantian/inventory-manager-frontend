@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Inventory Manager Frontend
 
-## Getting Started
+This Next.js (App Router + TypeScript + Tailwind) UI sits on top of the `InventoryManagerServer` backend. Every available REST/WebSocket endpoint from the backend is surfaced in the UI so managers and staff can manage authentication, users, stores, SKUs, inventory, and live alerts.
 
-First, run the development server:
+### Environment Variables
+
+Create a `.env.local` file inside `inventory-manager-frontend/`:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+NEXT_PUBLIC_WS_URL=ws://localhost:8080/api/ws
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`NEXT_PUBLIC_WS_URL` is optional—if omitted, it is derived from `NEXT_PUBLIC_API_BASE_URL`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install        # install dependencies
+npm run dev        # start Next.js dev server on http://localhost:3000
+npm run build      # production build
+npm run start      # run the production build
+npm run lint       # lint TypeScript + Tailwind files
+```
 
-## Learn More
+### Feature Matrix (UI → Backend Endpoint)
 
-To learn more about Next.js, take a look at the following resources:
+| UI Area | Endpoint(s) |
+| --- | --- |
+| Sign-in | `POST /api/auth/login` |
+| Profile page | `GET /api/profile`, `PUT /api/profile/password` |
+| Dashboard metrics | `GET /api/manager/skus`, `GET /api/inventory`, `GET /api/manager/users` |
+| Items list | `GET /api/manager/skus`, `GET /api/manager/skus/categories`, `DELETE /api/manager/skus/:id` |
+| Item detail | `GET /api/manager/skus/:id`, `GET /api/inventory?sku_id=`, `POST /api/manager/inventory`, `PUT /api/manager/inventory/:id`, `DELETE /api/manager/inventory/:id`, `POST /api/inventory/:id/adjust` |
+| Inventory explorer | `GET /api/inventory`, `GET /api/inventory/:id`, `POST /api/inventory/:id/adjust` |
+| Alerts | `GET /api/inventory`, `POST /api/inventory/:id/adjust` |
+| Audit log | `GET /api/inventory` |
+| User admin | `GET/POST/PUT/DELETE /api/manager/users` |
+| Store admin | `GET/POST/DELETE /api/manager/stores`, `GET/POST/DELETE /api/manager/stores/staff` |
+| WebSocket banner | `GET /api/ws?token=...` (live inventory events) |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Staff accounts automatically respect backend authorization: staff can view inventory and adjust assigned stores only, while managers see the full suite of admin tools.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Architecture Notes
 
-## Deploy on Vercel
+- App Router with route groups: `/login` is public, `/dashboard/*` is protected.
+- `AuthProvider` stores JWTs (localStorage for “remember me”, sessionStorage otherwise) and exposes the typed API client.
+- `InventoryUpdatesProvider` opens the documented `ws://…/api/ws?token=` socket and surfaces connection status + last broadcast.
+- Shared hooks and primitives live under `src/lib/` and `src/hooks/`.
+- All forms are declarative client components calling the backend directly via fetch with the JWT bearer header.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Testing Checklist
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Start the backend (`docker compose up --build --wait` inside `InventoryManagerServer/`).
+2. Run `npm run dev` from `inventory-manager-frontend/`.
+3. Visit `http://localhost:3000`:
+   - Login with `admin/adminadmin`.
+   - Exercise dashboard metrics, items CRUD, user/store management, and inventory adjustments.
+   - Observe low-stock alerts and the live WebSocket banner when inventory changes on another tab/instance.
+
+The UI strictly mirrors backend capabilities—no extra mock features are rendered. If you extend the backend API, update the corresponding screen and the table above.
