@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { createApiClient, loginRequest } from '@/lib/api-client';
 import { ApiClient } from '@/lib/api-client';
 import { LoginRequest, LoginResponse, User } from '@/lib/types';
+import { useServer } from '@/context/server-context';
 
 type PersistMode = 'local' | 'session';
 
@@ -72,6 +73,7 @@ function writeStoredAuth(payload: StoredAuthPayload | null, mode: PersistMode) {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { selectedServer } = useServer();
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [persistMode, setPersistMode] = useState<PersistMode>('local');
@@ -88,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setInitialised(true);
   }, []);
 
-  const api = useMemo(() => (token ? createApiClient(token) : null), [token]);
+  const api = useMemo(() => (token ? createApiClient(token, selectedServer.url) : null), [token, selectedServer.url]);
 
   useEffect(() => {
     if (!token || !api || !initialised) {
@@ -125,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (credentials: LoginRequest) => {
-      const response = await loginRequest(credentials);
+      const response = await loginRequest(credentials, selectedServer.url);
       const remember = credentials.rememberMe ?? false;
       const mode: PersistMode = remember ? 'local' : 'session';
       setPersistMode(mode);
@@ -134,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       writeStoredAuth({ token: response.token, user: response.user, persist: mode }, mode);
       return response;
     },
-    [],
+    [selectedServer.url],
   );
 
   const logout = useCallback(() => {

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
+import { ServerProvider } from '@/context/server-context';
 import { AuthProvider } from '@/context/auth-context';
 import { InventoryUpdatesProvider } from '@/context/inventory-updates-context';
 
@@ -30,9 +31,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-950 text-slate-100`}
         suppressHydrationWarning={true}
       >
-        <AuthProvider>
-          <InventoryUpdatesProvider>{children}</InventoryUpdatesProvider>
-        </AuthProvider>
+        <ServerProvider>
+          <AuthProvider>
+            <InventoryUpdatesProvider>{children}</InventoryUpdatesProvider>
+          </AuthProvider>
+        </ServerProvider>
       </body>
     </html>
   );
