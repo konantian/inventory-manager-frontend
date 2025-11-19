@@ -144,11 +144,11 @@ export function createApiClient(token: string | null, baseUrl = API_BASE_URL) {
         method: 'DELETE',
       }),
 
-    // SKUs
+    // SKUs (read operations available to all authenticated users)
     listSkus: (filters: SKUListFilters = {}) =>
-      authedFetch<SKUListResponse>(`/api/manager/skus${buildQuery(filters as Record<string, string | number | boolean | undefined | null>)}`),
-    listSkuCategories: () => authedFetch<{ categories: string[] }>('/api/manager/skus/categories'),
-    getSku: (id: string) => authedFetch<SKU>(`/api/manager/skus/${id}`),
+      authedFetch<SKUListResponse>(`/api/skus${buildQuery(filters as Record<string, string | number | boolean | undefined | null>)}`),
+    listSkuCategories: () => authedFetch<{ categories: string[] }>('/api/skus/categories'),
+    getSku: (id: string) => authedFetch<SKU>(`/api/skus/${id}`),
     createSku: (body: SKURequestBody) =>
       authedFetch<SKU>('/api/manager/skus', {
         method: 'POST',

@@ -340,7 +340,7 @@ export default function ItemsPage() {
           </div>
           <div className="flex flex-wrap gap-3">
             <input
-              placeholder="Search by SKU or name"
+              placeholder="Name, Category, or Description"
               className="input w-64"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -395,7 +395,7 @@ export default function ItemsPage() {
           <table className="min-w-full text-sm">
             <thead className="bg-white/5 text-left text-xs uppercase tracking-wide text-slate-400">
               <tr>
-                <th className="px-4 py-3">SKU</th>
+                <th className="px-4 py-3">SKU Name</th>
                 <th className="px-4 py-3">Category</th>
                 <th className="px-4 py-3">Price</th>
                 <th className="px-4 py-3">Updated</th>
@@ -650,7 +650,7 @@ export default function ItemsPage() {
               <thead className="bg-white/5 text-left text-xs uppercase tracking-wide text-slate-400">
                 <tr>
                   <th className="px-4 py-3">Store</th>
-                  <th className="px-4 py-3">SKU</th>
+                  <th className="px-4 py-3">SKU Name</th>
                   <th className="px-4 py-3">Quantity</th>
                   <th className="px-4 py-3">Updated</th>
                   <th className="px-4 py-3 text-right">Actions</th>
