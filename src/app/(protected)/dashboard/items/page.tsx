@@ -365,7 +365,8 @@ export default function ItemsPage() {
           </div>
         </header>
 
-        <div className="overflow-x-auto rounded-2xl border border-white/5">
+        {/* Desktop Table View - Hidden on Mobile */}
+        <div className="hidden md:block overflow-x-auto rounded-2xl border border-white/5">
           <table className="min-w-full text-sm">
             <thead className="bg-white/5 text-left text-xs uppercase tracking-wide text-slate-400">
               <tr>
@@ -417,6 +418,61 @@ export default function ItemsPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Tiles View - Hidden on Desktop */}
+        <div className="md:hidden space-y-3">
+          {(skuQuery.data?.items ?? []).map((sku) => (
+            <div
+              key={sku.id}
+              className="rounded-2xl border border-white/5 bg-white/5 p-4 space-y-3"
+            >
+              <div>
+                <div className="font-semibold text-white text-base">{sku.name}</div>
+                <div className="text-xs text-slate-400 font-mono">{sku.id}</div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-xs text-slate-500 uppercase tracking-wide">Category</p>
+                  <p className="text-slate-200 capitalize">{sku.category || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase tracking-wide">Price</p>
+                  <p className="text-slate-100 font-semibold">${sku.price.toFixed(2)}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs text-slate-500 uppercase tracking-wide">Last Updated</p>
+                <p className="text-slate-400 text-xs">{new Date(sku.updated_at).toLocaleString()}</p>
+              </div>
+
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-white/10">
+                <Link href={`/dashboard/items/${sku.id}`} className="btn-secondary px-3 py-1 text-sm flex-1 text-center">
+                  View
+                </Link>
+                {user?.role === 'manager' && (
+                  <>
+                    <Link href={`/dashboard/items/${sku.id}/edit`} className="btn-secondary px-3 py-1 text-sm flex-1 text-center">
+                      Edit
+                    </Link>
+                    <button
+                      onClick={() => handleDeleteSku(sku)}
+                      className="rounded-xl border border-rose-500/40 px-3 py-1 text-sm text-rose-200 hover:bg-rose-500/10 flex-1"
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+          {skuQuery.data?.items?.length === 0 && (
+            <div className="rounded-2xl border border-white/5 bg-white/5 p-6 text-center text-slate-400">
+              No SKUs match this query.
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between text-xs text-slate-400">
