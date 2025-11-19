@@ -39,10 +39,46 @@ export default function EditItemPage() {
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!api) return;
-    setSubmitting(true);
     setError(null);
+
+    // Validation
+    if (!form.name.trim()) {
+      setError('Item name is required');
+      return;
+    }
+    if (form.name.trim().length < 2) {
+      setError('Item name must be at least 2 characters');
+      return;
+    }
+    if (!form.category.trim()) {
+      setError('Category is required');
+      return;
+    }
+    if (!form.description.trim()) {
+      setError('Description is required');
+      return;
+    }
+    if (form.description.trim().length < 5) {
+      setError('Description must be at least 5 characters');
+      return;
+    }
+    if (form.price <= 0) {
+      setError('Price must be greater than 0');
+      return;
+    }
+    if (form.price > 1000000) {
+      setError('Price must be less than 1,000,000');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      await api.updateSku(skuId, form);
+      await api.updateSku(skuId, {
+        name: form.name.trim(),
+        category: form.category.trim(),
+        description: form.description.trim(),
+        price: form.price,
+      });
       router.replace(`/dashboard/items/${skuId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update SKU');

@@ -22,8 +22,26 @@ export default function LoginPage() {
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
-    setSubmitting(true);
 
+    // Validation
+    if (!username.trim()) {
+      setError('Username is required');
+      return;
+    }
+    if (username.trim().length < 3) {
+      setError('Username must be at least 3 characters');
+      return;
+    }
+    if (!password) {
+      setError('Password is required');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+
+    setSubmitting(true);
     try {
       await login({ username, password, rememberMe });
       router.replace('/dashboard');

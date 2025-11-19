@@ -31,12 +31,71 @@ export default function CreateItemPage() {
     event.preventDefault();
     if (!api) return;
     setError(null);
+
+    // Validation
+    if (!form.name.trim()) {
+      setError('Item name is required');
+      return;
+    }
+    if (form.name.trim().length < 2) {
+      setError('Item name must be at least 2 characters');
+      return;
+    }
+    if (!form.category.trim()) {
+      setError('Category is required');
+      return;
+    }
+    if (form.category.trim().length < 2) {
+      setError('Category must be at least 2 characters');
+      return;
+    }
+    if (!form.description.trim()) {
+      setError('Description is required');
+      return;
+    }
+    if (form.description.trim().length < 5) {
+      setError('Description must be at least 5 characters');
+      return;
+    }
+    if (form.price <= 0) {
+      setError('Price must be greater than 0');
+      return;
+    }
+    if (form.price > 1000000) {
+      setError('Price must be less than 1,000,000');
+      return;
+    }
+
+    // Validate initial stock if provided
+    const selectedStores = new Set<string>();
+    for (let i = 0; i < initialStock.length; i++) {
+      const stock = initialStock[i];
+      if (stock.store_id) {
+        // Check for duplicate store
+        if (selectedStores.has(stock.store_id)) {
+          const storeName = (storesQuery.data?.items ?? []).find((s) => s.id === stock.store_id)?.name || 'Unknown';
+          setError(`Duplicate store detected: ${storeName}. Each store can only be selected once.`);
+          return;
+        }
+        selectedStores.add(stock.store_id);
+
+        if (stock.quantity < 0) {
+          setError(`Initial quantity for location ${i + 1} cannot be negative`);
+          return;
+        }
+        if (stock.quantity > 1000000) {
+          setError(`Initial quantity for location ${i + 1} must be less than 1,000,000`);
+          return;
+        }
+      }
+    }
+
     setSubmitting(true);
     try {
       const sku = await api.createSku({
-        name: form.name,
-        category: form.category,
-        description: form.description,
+        name: form.name.trim(),
+        category: form.category.trim(),
+        description: form.description.trim(),
         price: form.price,
       });
 
@@ -91,19 +150,22 @@ export default function CreateItemPage() {
         </div>
         <div className="space-y-2">
           <label className="label">Category</label>
-          <select
+          <input
+            list="categories"
             className="input"
             value={form.category}
             onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}
+            placeholder="Select or type a new category"
             required
-          >
-            <option value="">Select category</option>
+          />
+          <datalist id="categories">
             {(categoriesQuery.data?.categories ?? []).map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
+              <option key={category} value={category} />
             ))}
-          </select>
+          </datalist>
+          <p className="text-xs text-slate-400">
+            Select an existing category or type a new one
+          </p>
         </div>
         <div className="md:col-span-2 space-y-2">
           <label className="label">Description</label>

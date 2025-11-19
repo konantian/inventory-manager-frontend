@@ -37,8 +37,44 @@ export default function UsersPage() {
     if (!api) return;
     setError(null);
     setMessage(null);
+
+    // Validation
+    if (!createForm.username.trim()) {
+      setError('Username is required');
+      return;
+    }
+    if (createForm.username.trim().length < 3) {
+      setError('Username must be at least 3 characters');
+      return;
+    }
+    if (!/^[a-zA-Z0-9_-]+$/.test(createForm.username.trim())) {
+      setError('Username can only contain letters, numbers, underscores, and hyphens');
+      return;
+    }
+    if (!createForm.email.trim()) {
+      setError('Email is required');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(createForm.email.trim())) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    if (!createForm.password) {
+      setError('Password is required');
+      return;
+    }
+    if (createForm.password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+
     try {
-      await api.createUser(createForm);
+      await api.createUser({
+        username: createForm.username.trim(),
+        email: createForm.email.trim(),
+        password: createForm.password,
+        role: createForm.role,
+      });
       setCreateForm({ username: '', email: '', password: '', role: 'staff' });
       setMessage('User created.');
       usersQuery.reload();
@@ -57,11 +93,34 @@ export default function UsersPage() {
     if (!api || !editUser) return;
     setError(null);
     setMessage(null);
+
+    // Validation
+    if (!editForm.username.trim()) {
+      setError('Username is required');
+      return;
+    }
+    if (editForm.username.trim().length < 3) {
+      setError('Username must be at least 3 characters');
+      return;
+    }
+    if (!/^[a-zA-Z0-9_-]+$/.test(editForm.username.trim())) {
+      setError('Username can only contain letters, numbers, underscores, and hyphens');
+      return;
+    }
+    if (!editForm.email.trim()) {
+      setError('Email is required');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.email.trim())) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     try {
       await api.updateUser({
         target_id: editUser.id,
-        username: editForm.username,
-        email: editForm.email,
+        username: editForm.username.trim(),
+        email: editForm.email.trim(),
         role: editForm.role,
       });
       setMessage('User updated.');

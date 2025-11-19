@@ -15,6 +15,25 @@ export default function ProfilePage() {
     if (!api) return;
     setError(null);
     setMessage(null);
+
+    // Validation
+    if (!form.old_password) {
+      setError('Current password is required');
+      return;
+    }
+    if (!form.new_password) {
+      setError('New password is required');
+      return;
+    }
+    if (form.new_password.length < 8) {
+      setError('New password must be at least 8 characters');
+      return;
+    }
+    if (form.new_password === form.old_password) {
+      setError('New password must be different from current password');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const response = await api.changePassword(form);

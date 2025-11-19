@@ -75,6 +75,11 @@ export default function ItemsPage() {
   );
   const inventoryQuery = useApiQuery(api ? inventoryFetcher : null);
 
+  // Reload SKU query when filters change
+  useEffect(() => {
+    skuQuery.reload();
+  }, [skuFilters]);
+
   useEffect(() => {
     if (!selectedInventory && inventoryQuery.data?.items?.length) {
       setSelectedInventory(inventoryQuery.data.items[0]);
@@ -87,6 +92,11 @@ export default function ItemsPage() {
       inventoryQuery.reload();
     }
   }, [lastEvent]);
+
+  // Reload inventory when filters change
+  useEffect(() => {
+    inventoryQuery.reload();
+  }, [inventoryFilters]);
 
   // Update selectedInventory when inventory data is reloaded
   useEffect(() => {
@@ -124,7 +134,26 @@ export default function ItemsPage() {
 
   const handleAdjust = async () => {
     if (!api || !selectedInventory) return;
-    if (!adjustQuantity) return;
+    setInventoryError(null);
+
+    // Validation
+    if (adjustQuantity === 0) {
+      setInventoryError('Adjust delta cannot be zero');
+      return;
+    }
+    if (adjustQuantity < -1000000) {
+      setInventoryError('Adjust delta cannot be less than -1,000,000');
+      return;
+    }
+    if (adjustQuantity > 1000000) {
+      setInventoryError('Adjust delta cannot be greater than 1,000,000');
+      return;
+    }
+    if (selectedInventory.quantity + adjustQuantity < 0) {
+      setInventoryError(`Cannot adjust by ${adjustQuantity}. Result would be negative (current: ${selectedInventory.quantity})`);
+      return;
+    }
+
     try {
       const updated = await api.adjustInventory(selectedInventory.id, { delta_quantity: adjustQuantity });
       setSelectedInventory(updated);
@@ -136,7 +165,23 @@ export default function ItemsPage() {
   };
 
   const handleSetQuantity = async () => {
-    if (!api || !selectedInventory || setQuantity === '') return;
+    if (!api || !selectedInventory) return;
+    setInventoryError(null);
+
+    // Validation
+    if (setQuantity === '') {
+      setInventoryError('Quantity is required');
+      return;
+    }
+    if (setQuantity < 0) {
+      setInventoryError('Quantity cannot be negative');
+      return;
+    }
+    if (setQuantity > 1000000) {
+      setInventoryError('Quantity cannot be greater than 1,000,000');
+      return;
+    }
+
     try {
       const updated = await api.updateInventory(selectedInventory.id, { quantity: setQuantity });
       setSelectedInventory(updated);
@@ -159,8 +204,39 @@ export default function ItemsPage() {
 
   const handleCreateInventory = async () => {
     if (!api) return;
-    setCreatingInventory(true);
     setInventoryError(null);
+
+    // Validation
+    if (!newInventory.sku_id) {
+      setInventoryError('Please select a SKU');
+      return;
+    }
+    if (!newInventory.store_id) {
+      setInventoryError('Please select a store');
+      return;
+    }
+
+    // Check if inventory already exists for this SKU and store combination
+    const existingInventory = (inventoryQuery.data?.items ?? []).find(
+      (item) => item.sku_id === newInventory.sku_id && item.store_id === newInventory.store_id
+    );
+    if (existingInventory) {
+      const skuName = (skuQuery.data?.items ?? []).find((s) => s.id === newInventory.sku_id)?.name || 'Unknown SKU';
+      const storeName = stores.find((s) => s.id === newInventory.store_id)?.name || 'Unknown Store';
+      setInventoryError(`Inventory record already exists for ${skuName} at ${storeName}. Use the inventory controls to adjust the quantity instead.`);
+      return;
+    }
+
+    if (newInventory.quantity < 0) {
+      setInventoryError('Initial quantity cannot be negative');
+      return;
+    }
+    if (newInventory.quantity > 1000000) {
+      setInventoryError('Initial quantity cannot be greater than 1,000,000');
+      return;
+    }
+
+    setCreatingInventory(true);
     try {
       await api.createInventory(newInventory);
       setNewInventory({ sku_id: '', store_id: '', quantity: 0 });
@@ -321,6 +397,57 @@ export default function ItemsPage() {
           </div>
         </div>
       </section>
+
+      {user?.role === 'manager' && (
+        <section className="card">
+          <header>
+            <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Create</p>
+            <h3 className="text-xl font-semibold text-white">New inventory record</h3>
+          </header>
+          <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
+            <select
+              className="input"
+              value={newInventory.store_id}
+              onChange={(e) => setNewInventory((prev) => ({ ...prev, store_id: e.target.value }))}
+            >
+              <option value="">Select store</option>
+              {stores.map((store) => (
+                <option key={store.id} value={store.id}>
+                  {store.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="input"
+              value={newInventory.sku_id}
+              onChange={(e) => setNewInventory((prev) => ({ ...prev, sku_id: e.target.value }))}
+            >
+              <option value="">Select SKU</option>
+              {(skuQuery.data?.items ?? []).map((sku) => (
+                <option key={sku.id} value={sku.id}>
+                  {sku.name}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              className="input"
+              value={newInventory.quantity}
+              onChange={(e) => setNewInventory((prev) => ({ ...prev, quantity: Number(e.target.value) }))}
+              placeholder="Initial quantity"
+              min={0}
+            />
+          </div>
+          <div className="mt-3 flex items-center gap-3">
+            <button className="btn-primary" onClick={handleCreateInventory} disabled={creatingInventory}>
+              {creatingInventory ? 'Creating…' : 'Create inventory record'}
+            </button>
+            <p className="text-xs text-slate-400">
+              Uses <code className="font-mono text-cyan-200">POST /api/manager/inventory</code>.
+            </p>
+          </div>
+        </section>
+      )}
 
       <section className="grid gap-6 lg:grid-cols-3">
         <div className="card lg:col-span-2">
@@ -513,52 +640,6 @@ export default function ItemsPage() {
             </div>
           ) : (
             <p className="text-sm text-slate-400">Select an inventory record to manage quantities.</p>
-          )}
-
-          {user?.role === 'manager' && (
-            <div className="rounded-2xl border border-white/5 bg-slate-900/60 p-4">
-              <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Create inventory</p>
-              <div className="mt-4 space-y-3 text-sm">
-                <select
-                  className="input"
-                  value={newInventory.store_id}
-                  onChange={(e) => setNewInventory((prev) => ({ ...prev, store_id: e.target.value }))}
-                >
-                  <option value="">Select store</option>
-                  {stores.map((store) => (
-                    <option key={store.id} value={store.id}>
-                      {store.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className="input"
-                  value={newInventory.sku_id}
-                  onChange={(e) => setNewInventory((prev) => ({ ...prev, sku_id: e.target.value }))}
-                >
-                  <option value="">Select SKU</option>
-                  {(skuQuery.data?.items ?? []).map((sku) => (
-                    <option key={sku.id} value={sku.id}>
-                      {sku.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="number"
-                  className="input"
-                  value={newInventory.quantity}
-                  onChange={(e) => setNewInventory((prev) => ({ ...prev, quantity: Number(e.target.value) }))}
-                  placeholder="Initial quantity"
-                  min={0}
-                />
-                <button className="btn-primary w-full" onClick={handleCreateInventory} disabled={creatingInventory}>
-                  {creatingInventory ? 'Creating…' : 'Create inventory record'}
-                </button>
-                <p className="text-xs text-slate-400">
-                  Uses <code className="font-mono text-cyan-200">POST /api/manager/inventory</code>.
-                </p>
-              </div>
-            </div>
           )}
         </div>
       </section>

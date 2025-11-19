@@ -41,11 +41,33 @@ export default function StoresPage() {
   }, [api, selectedStore]);
 
   const handleCreateStore = async () => {
-    if (!api || !newStore.name || !newStore.address) return;
+    if (!api) return;
     setError(null);
     setMessage(null);
+
+    // Validation
+    if (!newStore.name.trim()) {
+      setError('Store name is required');
+      return;
+    }
+    if (newStore.name.trim().length < 2) {
+      setError('Store name must be at least 2 characters');
+      return;
+    }
+    if (!newStore.address.trim()) {
+      setError('Store address is required');
+      return;
+    }
+    if (newStore.address.trim().length < 5) {
+      setError('Store address must be at least 5 characters');
+      return;
+    }
+
     try {
-      const store = await api.createStore(newStore);
+      const store = await api.createStore({
+        name: newStore.name.trim(),
+        address: newStore.address.trim(),
+      });
       setNewStore({ name: '', address: '' });
       storesQuery.reload();
       setSelectedStoreId(store.id);
@@ -135,32 +157,48 @@ export default function StoresPage() {
       {error && (
         <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-3 text-sm text-rose-100">{error}</div>
       )}
-      <section className="grid gap-4 md:grid-cols-3">
-        <div className="card space-y-4 md:col-span-1">
-          <h2 className="text-lg font-semibold text-white">Stores</h2>
-          <div className="space-y-2">
-            {stores.map((store) => (
-              <div
-                key={store.id}
-                className={`rounded-2xl border p-3 text-sm ${
-                  selectedStore?.id === store.id ? 'border-cyan-400/50 bg-cyan-500/10' : 'border-white/5 bg-white/5'
-                }`}
+      <section className="space-y-4">
+        <div className="card space-y-4">
+          <h2 className="text-lg font-semibold text-white">Store Management</h2>
+          <div className="space-y-3">
+            <div>
+              <label className="mb-2 block text-sm text-slate-400">Select Store</label>
+              <select
+                className="input w-full"
+                value={selectedStore?.id ?? ''}
+                onChange={(e) => setSelectedStoreId(e.target.value)}
               >
-                <button onClick={() => setSelectedStoreId(store.id)} className="w-full text-left text-white">
-                  <p className="font-semibold">{store.name}</p>
-                  <p className="text-xs text-slate-400">{store.address}</p>
-                </button>
-                <button
-                  className="mt-2 text-xs text-rose-200"
-                  onClick={() => handleDeleteStore(store)}
-                >
-                  Delete
-                </button>
+                <option value="">Select a store</option>
+                {stores.map((store) => (
+                  <option key={store.id} value={store.id}>
+                    {store.name} - {store.address}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {selectedStore && (
+              <div className="rounded-2xl border border-cyan-400/30 bg-cyan-500/10 p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-lg font-semibold text-white">{selectedStore.name}</p>
+                    <p className="text-sm text-slate-300">{selectedStore.address}</p>
+                    <p className="mt-1 text-xs text-slate-400">ID: {selectedStore.id}</p>
+                  </div>
+                  <button
+                    className="rounded-xl border border-rose-500/50 bg-rose-500/10 px-3 py-1 text-xs text-rose-200 hover:bg-rose-500/20"
+                    onClick={() => handleDeleteStore(selectedStore)}
+                  >
+                    Delete Store
+                  </button>
+                </div>
               </div>
-            ))}
-            {stores.length === 0 && <p className="text-sm text-slate-400">No stores yet.</p>}
+            )}
           </div>
-          <div className="space-y-2">
+        </div>
+
+        <div className="card space-y-4">
+          <h2 className="text-lg font-semibold text-white">Create New Store</h2>
+          <div className="grid gap-3 md:grid-cols-2">
             <input
               className="input"
               placeholder="Store name"
@@ -173,14 +211,14 @@ export default function StoresPage() {
               value={newStore.address}
               onChange={(e) => setNewStore((prev) => ({ ...prev, address: e.target.value }))}
             />
-            <button className="btn-primary w-full" onClick={handleCreateStore}>
-              Create store
-            </button>
           </div>
+          <button className="btn-primary" onClick={handleCreateStore}>
+            Create store
+          </button>
         </div>
 
-        <div className="card space-y-4 md:col-span-2">
-          <h2 className="text-lg font-semibold text-white">Staffing</h2>
+        <div className="card space-y-4">
+          <h2 className="text-lg font-semibold text-white">Store Staffing</h2>
           {selectedStore ? (
             <>
               <p className="text-sm text-slate-400">
@@ -230,7 +268,7 @@ export default function StoresPage() {
               </div>
             </>
           ) : (
-            <p className="text-sm text-slate-400">Select a store to view staff.</p>
+            <p className="text-sm text-slate-400">Select a store to manage staffing.</p>
           )}
         </div>
       </section>

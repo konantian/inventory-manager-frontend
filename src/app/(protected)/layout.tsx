@@ -9,7 +9,6 @@ import { useInventoryUpdates } from '@/context/inventory-updates-context';
 const navigation = [
   { label: 'Dashboard', href: '/dashboard', roles: ['manager', 'staff'] },
   { label: 'Items', href: '/dashboard/items', roles: ['manager', 'staff'] },
-  { label: 'Audit Log', href: '/dashboard/audit', roles: ['manager', 'staff'] },
   { label: 'Alerts', href: '/dashboard/alerts', roles: ['manager', 'staff'] },
   { label: 'Stores', href: '/dashboard/stores', roles: ['manager'] },
   { label: 'Users', href: '/dashboard/users', roles: ['manager'] },
@@ -116,11 +115,15 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
                 <div>
                   <p className="text-xs uppercase tracking-[0.3em] text-cyan-200">Live inventory update</p>
                   <p className="text-base font-semibold text-white">
-                    {lastEvent.sku_name} @ {lastEvent.store_name}
+                    {lastEvent.sku_name} at {lastEvent.store_name}
                   </p>
                   <p className="text-sm text-cyan-100">
-                    {lastEvent.operation_type.toUpperCase()} · Δ {lastEvent.delta_quantity} · New qty{' '}
-                    {lastEvent.new_quantity} (v{lastEvent.version})
+                    {lastEvent.operation_type === 'create' && `Created with initial quantity of ${lastEvent.new_quantity}`}
+                    {lastEvent.operation_type === 'adjust' && lastEvent.delta_quantity > 0 && `Increased by ${lastEvent.delta_quantity} to ${lastEvent.new_quantity}`}
+                    {lastEvent.operation_type === 'adjust' && lastEvent.delta_quantity < 0 && `Decreased by ${Math.abs(lastEvent.delta_quantity)} to ${lastEvent.new_quantity}`}
+                    {lastEvent.operation_type === 'update' && `Updated to ${lastEvent.new_quantity}`}
+                    {lastEvent.operation_type === 'delete' && 'Inventory record deleted'}
+                    {' '}(version {lastEvent.version})
                   </p>
                 </div>
                 <button onClick={clearLastEvent} className="text-xs uppercase tracking-wide text-cyan-100 hover:text-white">
