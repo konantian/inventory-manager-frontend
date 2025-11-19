@@ -75,6 +75,21 @@ export default function ItemsPage() {
     },
   );
 
+  // For staff: fetch unfiltered inventory to get all accessible stores
+  const allInventoryFetcher = useCallback(
+    () =>
+      api && user?.role === 'staff'
+        ? api.listInventory({
+            page: 1,
+            page_size: 100, // Get enough to capture all unique stores
+            sort_by: 'updated_at',
+            order: 'desc',
+          })
+        : Promise.resolve(null),
+    [api, user?.role],
+  );
+  const allInventoryQuery = useApiQuery(api && user?.role === 'staff' ? allInventoryFetcher : null);
+
   const inventoryFetcher = useCallback(
     () =>
       api
@@ -325,10 +340,23 @@ export default function ItemsPage() {
     document.body.removeChild(link);
   };
 
-  const stores: Store[] = useMemo(
-    () => (storesQuery.data as StoreListResponse | null)?.items ?? [],
-    [storesQuery.data],
-  );
+  const stores: Store[] = useMemo(() => {
+    if (user?.role === 'manager') {
+      return (storesQuery.data as StoreListResponse | null)?.items ?? [];
+    } else {
+      // For staff, extract unique stores from ALL inventory (not filtered)
+      const inventoryItems = allInventoryQuery.data?.items ?? [];
+      const uniqueStores = new Map<string, Store>();
+      
+      inventoryItems.forEach((item) => {
+        if (item.store) {
+          uniqueStores.set(item.store.id, item.store);
+        }
+      });
+      
+      return Array.from(uniqueStores.values());
+    }
+  }, [user?.role, storesQuery.data, allInventoryQuery.data]);
 
   return (
     <div className="space-y-8">
@@ -340,7 +368,7 @@ export default function ItemsPage() {
           </div>
           <div className="flex flex-wrap gap-3">
             <input
-              placeholder="Search by SKU or name"
+              placeholder="Name, Category, or Description"
               className="input w-64"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -395,7 +423,7 @@ export default function ItemsPage() {
           <table className="min-w-full text-sm">
             <thead className="bg-white/5 text-left text-xs uppercase tracking-wide text-slate-400">
               <tr>
-                <th className="px-4 py-3">SKU</th>
+                <th className="px-4 py-3">SKU Name</th>
                 <th className="px-4 py-3">Category</th>
                 <th className="px-4 py-3">Price</th>
                 <th className="px-4 py-3">Updated</th>
@@ -650,7 +678,7 @@ export default function ItemsPage() {
               <thead className="bg-white/5 text-left text-xs uppercase tracking-wide text-slate-400">
                 <tr>
                   <th className="px-4 py-3">Store</th>
-                  <th className="px-4 py-3">SKU</th>
+                  <th className="px-4 py-3">SKU Name</th>
                   <th className="px-4 py-3">Quantity</th>
                   <th className="px-4 py-3">Updated</th>
                   <th className="px-4 py-3 text-right">Actions</th>
