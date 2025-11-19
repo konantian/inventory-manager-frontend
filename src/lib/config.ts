@@ -14,3 +14,15 @@ function deriveWsUrl() {
 
 export const WS_BASE_URL = deriveWsUrl();
 
+// Server configuration
+export interface ServerOption {
+  id: string;
+  name: string;
+  url: string;
+}
+
+export const DEFAULT_SERVERS: ServerOption[] = [
+  { id: 'api-1', name: 'API Server 1', url: 'http://localhost:8080' },
+  { id: 'api-2', name: 'API Server 2', url: 'http://localhost:8081' },
+];
+

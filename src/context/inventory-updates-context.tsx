@@ -2,8 +2,8 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { InventoryUpdateEvent } from '@/lib/types';
-import { WS_BASE_URL } from '@/lib/config';
 import { useAuth } from '@/context/auth-context';
+import { useServer } from '@/context/server-context';
 
 interface InventoryUpdatesContextValue {
   connected: boolean;
@@ -15,6 +15,7 @@ const InventoryUpdatesContext = createContext<InventoryUpdatesContextValue | und
 
 export function InventoryUpdatesProvider({ children }: { children: React.ReactNode }) {
   const { token } = useAuth();
+  const { selectedServer } = useServer();
   const [connected, setConnected] = useState(false);
   const [lastEvent, setLastEvent] = useState<InventoryUpdateEvent | null>(null);
 
@@ -25,9 +26,14 @@ export function InventoryUpdatesProvider({ children }: { children: React.ReactNo
       return;
     }
 
+    // Derive WebSocket URL from selected server
+    const wsBaseUrl = selectedServer.url.startsWith('https')
+      ? `${selectedServer.url.replace('https', 'wss')}/api/ws`
+      : `${selectedServer.url.replace('http', 'ws')}/api/ws`;
+
     let wsUrl: URL;
     try {
-      wsUrl = new URL(WS_BASE_URL);
+      wsUrl = new URL(wsBaseUrl);
     } catch (error) {
       console.error('Invalid WS URL', error);
       return;
@@ -51,7 +57,7 @@ export function InventoryUpdatesProvider({ children }: { children: React.ReactNo
     return () => {
       socket.close();
     };
-  }, [token]);
+  }, [token, selectedServer.url]);
 
   const clearLastEvent = () => setLastEvent(null);
 

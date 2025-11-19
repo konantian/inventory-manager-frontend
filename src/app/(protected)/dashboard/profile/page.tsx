@@ -2,9 +2,13 @@
 
 import { FormEvent, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
+import { useServer } from '@/context/server-context';
+import { useInventoryUpdates } from '@/context/inventory-updates-context';
 
 export default function ProfilePage() {
   const { user, api, refreshProfile } = useAuth();
+  const { selectedServer } = useServer();
+  const { connected } = useInventoryUpdates();
   const [form, setForm] = useState({ old_password: '', new_password: '' });
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +68,29 @@ export default function ProfilePage() {
         <p className="text-xs text-slate-500">
           User ID: <span className="font-mono">{user.id}</span>
         </p>
+      </section>
+
+      <section className="card space-y-4">
+        <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Connection Status</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2 rounded-xl border border-white/5 bg-slate-900/50 p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wide text-slate-500">WebSocket</span>
+              <span
+                className={`h-2 w-2 rounded-full ${connected ? 'bg-emerald-400 shadow-sm shadow-emerald-400' : 'bg-amber-400'}`}
+              />
+            </div>
+            <p className="text-sm font-semibold text-white">{connected ? 'Live updates active' : 'Reconnecting…'}</p>
+          </div>
+          <div className="space-y-2 rounded-xl border border-white/5 bg-slate-900/50 p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wide text-slate-500">API Server</span>
+              <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400" />
+            </div>
+            <p className="text-sm font-semibold text-white">{selectedServer.name}</p>
+            <p className="text-xs font-mono text-slate-400">{selectedServer.url}</p>
+          </div>
+        </div>
       </section>
 
       <form className="card space-y-4" onSubmit={handleSubmit}>
