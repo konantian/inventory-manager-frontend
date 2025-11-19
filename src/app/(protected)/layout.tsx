@@ -63,7 +63,9 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
           {navigation
             .filter((item) => item.roles.includes(role))
             .map((item) => {
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const active = item.href === '/dashboard' 
+                ? pathname === '/dashboard'
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <Link
                   key={item.href}
@@ -124,7 +126,9 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
           {navigation
             .filter((item) => item.roles.includes(role))
             .map((item) => {
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const active = item.href === '/dashboard' 
+                ? pathname === '/dashboard'
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <Link
                   key={item.href}
