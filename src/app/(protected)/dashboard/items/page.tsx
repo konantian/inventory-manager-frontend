@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Trash2Icon } from 'lucide-react';
+import { Trash2Icon, DownloadIcon } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useInventoryUpdates } from '@/context/inventory-updates-context';
 import { useApiQuery } from '@/hooks/useApiQuery';
@@ -259,6 +259,47 @@ export default function ItemsPage() {
     }
   };
 
+  const handleDownloadCSV = () => {
+    const items = skuQuery.data?.items ?? [];
+    if (items.length === 0) {
+      alert('No items to download');
+      return;
+    }
+
+    // Create CSV headers
+    const headers = ['SKU ID', 'Name', 'Description', 'Category', 'Price', 'Version', 'Created At', 'Updated At'];
+    
+    // Create CSV rows
+    const rows = items.map(sku => [
+      sku.id,
+      `"${sku.name.replace(/"/g, '""')}"`, // Escape quotes in name
+      `"${(sku.description || '').replace(/"/g, '""')}"`, // Escape quotes in description
+      sku.category || '',
+      sku.price.toFixed(2),
+      sku.version.toString(),
+      new Date(sku.created_at).toISOString(),
+      new Date(sku.updated_at).toISOString(),
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `inventory-items-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const stores: Store[] = useMemo(
     () => (storesQuery.data as StoreListResponse | null)?.items ?? [],
     [storesQuery.data],
@@ -307,6 +348,14 @@ export default function ItemsPage() {
             </select>
             <button className="btn-primary" onClick={handleSearch}>
               Apply
+            </button>
+            <button 
+              className="btn-secondary flex items-center gap-2" 
+              onClick={handleDownloadCSV}
+              disabled={!skuQuery.data?.items?.length}
+            >
+              <DownloadIcon className="h-4 w-4" />
+              Export CSV
             </button>
             {user?.role === 'manager' && (
               <Link href="/dashboard/items/new" className="btn-secondary">
