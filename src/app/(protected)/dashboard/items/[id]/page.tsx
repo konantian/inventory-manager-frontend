@@ -7,6 +7,7 @@ import { Trash2Icon } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { InventoryRecord, SKU, Store } from '@/lib/types';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export default function ItemDetailPage() {
   const params = useParams<{ id: string }>();
@@ -20,6 +21,12 @@ export default function ItemDetailPage() {
   const [storeSelection, setStoreSelection] = useState('');
   const [newInventoryQuantity, setNewInventoryQuantity] = useState(0);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   const skuQuery = useApiQuery(api ? () => api.getSku(skuId) : null);
   const inventoryQuery = useApiQuery(
@@ -50,15 +57,21 @@ export default function ItemDetailPage() {
     [],
   );
 
-  const handleDeleteSku = async () => {
+  const handleDeleteSku = () => {
     if (!api || !sku) return;
-    if (!confirm(`Delete ${sku.name}? This will remove the SKU metadata.`)) return;
-    try {
-      await api.deleteSku(sku.id);
-      router.replace('/dashboard/items');
-    } catch (error) {
-      setFeedback(error instanceof Error ? error.message : 'Failed to delete SKU');
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete SKU',
+      message: `Delete SKU "${sku.name}"? This will permanently remove the SKU metadata and cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          await api.deleteSku(sku.id);
+          router.replace('/dashboard/items');
+        } catch (error) {
+          setFeedback(error instanceof Error ? error.message : 'Failed to delete SKU');
+        }
+      },
+    });
   };
 
   const handleAdjust = async () => {
@@ -85,18 +98,24 @@ export default function ItemDetailPage() {
     }
   };
 
-  const handleDeleteInventory = async (record: InventoryRecord) => {
+  const handleDeleteInventory = (record: InventoryRecord) => {
     if (!api) return;
-    if (!confirm(`Delete inventory record for ${record.store?.name ?? record.store_id}?`)) return;
-    try {
-      await api.deleteInventory(record.id);
-      inventoryQuery.reload();
-      if (selectedInventory?.id === record.id) {
-        setSelectedInventory(null);
-      }
-    } catch (error) {
-      setFeedback(error instanceof Error ? error.message : 'Failed to delete inventory record');
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Inventory Record',
+      message: `Delete inventory record for "${record.store?.name ?? record.store_id}"? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          await api.deleteInventory(record.id);
+          inventoryQuery.reload();
+          if (selectedInventory?.id === record.id) {
+            setSelectedInventory(null);
+          }
+        } catch (error) {
+          setFeedback(error instanceof Error ? error.message : 'Failed to delete inventory record');
+        }
+      },
+    });
   };
 
   const handleCreateInventory = async () => {
@@ -359,6 +378,17 @@ export default function ItemDetailPage() {
           </div>
         </section>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { User, UserRole } from '@/lib/types';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export default function UsersPage() {
   const { api, user } = useAuth();
@@ -19,6 +20,12 @@ export default function UsersPage() {
   const [editForm, setEditForm] = useState({ username: '', email: '', role: 'staff' as UserRole });
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   const usersQuery = useApiQuery(
     api && user?.role === 'manager' ? () => api.listUsers({ page, limit }) : null,
@@ -131,18 +138,24 @@ export default function UsersPage() {
     }
   };
 
-  const handleDelete = async (selected: User) => {
+  const handleDelete = (selected: User) => {
     if (!api) return;
-    if (!confirm(`Delete ${selected.username}?`)) return;
-    setError(null);
-    setMessage(null);
-    try {
-      await api.deleteUser(selected.id);
-      setMessage('User deleted.');
-      usersQuery.reload();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete user');
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete User',
+      message: `Delete user "${selected.username}"? This action cannot be undone.`,
+      onConfirm: async () => {
+        setError(null);
+        setMessage(null);
+        try {
+          await api.deleteUser(selected.id);
+          setMessage('User deleted.');
+          usersQuery.reload();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to delete user');
+        }
+      },
+    });
   };
 
   return (
@@ -303,6 +316,17 @@ export default function UsersPage() {
           )}
         </form>
       </section>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }

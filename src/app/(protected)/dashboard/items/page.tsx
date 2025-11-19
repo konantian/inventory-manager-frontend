@@ -6,6 +6,8 @@ import { Trash2Icon, DownloadIcon } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useInventoryUpdates } from '@/context/inventory-updates-context';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { Toast } from '@/components/Toast';
 import {
   CreateInventoryRequest,
   InventoryRecord,
@@ -35,7 +37,7 @@ export default function ItemsPage() {
   });
 
   const [selectedInventory, setSelectedInventory] = useState<InventoryRecord | null>(null);
-  const [adjustQuantity, setAdjustQuantity] = useState(0);
+  const [adjustQuantity, setAdjustQuantity] = useState<string | number>(0);
   const [setQuantity, setSetQuantity] = useState<number | ''>('');
   const [inventoryError, setInventoryError] = useState<string | null>(null);
   const [creatingInventory, setCreatingInventory] = useState(false);
@@ -44,6 +46,17 @@ export default function ItemsPage() {
     store_id: '',
     quantity: 0,
   });
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const [toast, setToast] = useState<{
+    isOpen: boolean;
+    message: string;
+    variant: 'success' | 'error' | 'info';
+  }>({ isOpen: false, message: '', variant: 'info' });
 
   const skuFetcher = useCallback(() => (api ? api.listSkus(skuFilters) : Promise.resolve(null)), [api, skuFilters]);
   const skuQuery = useApiQuery(api ? skuFetcher : null);
@@ -136,26 +149,31 @@ export default function ItemsPage() {
     if (!api || !selectedInventory) return;
     setInventoryError(null);
 
-    // Validation
-    if (adjustQuantity === 0) {
+    // Convert to number and validate
+    const delta = typeof adjustQuantity === 'string' ? parseFloat(adjustQuantity) : adjustQuantity;
+    if (isNaN(delta)) {
+      setInventoryError('Please enter a valid number');
+      return;
+    }
+    if (delta === 0) {
       setInventoryError('Adjust delta cannot be zero');
       return;
     }
-    if (adjustQuantity < -1000000) {
+    if (delta < -1000000) {
       setInventoryError('Adjust delta cannot be less than -1,000,000');
       return;
     }
-    if (adjustQuantity > 1000000) {
+    if (delta > 1000000) {
       setInventoryError('Adjust delta cannot be greater than 1,000,000');
       return;
     }
-    if (selectedInventory.quantity + adjustQuantity < 0) {
-      setInventoryError(`Cannot adjust by ${adjustQuantity}. Result would be negative (current: ${selectedInventory.quantity})`);
+    if (selectedInventory.quantity + delta < 0) {
+      setInventoryError(`Cannot adjust by ${delta}. Result would be negative (current: ${selectedInventory.quantity})`);
       return;
     }
 
     try {
-      const updated = await api.adjustInventory(selectedInventory.id, { delta_quantity: adjustQuantity });
+      const updated = await api.adjustInventory(selectedInventory.id, { delta_quantity: delta });
       setSelectedInventory(updated);
       setAdjustQuantity(0);
       inventoryQuery.reload();
@@ -248,21 +266,28 @@ export default function ItemsPage() {
     }
   };
 
-  const handleDeleteSku = async (sku: SKU) => {
+  const handleDeleteSku = (sku: SKU) => {
     if (!api) return;
-    if (!confirm(`Delete SKU ${sku.name}? This cannot be undone.`)) return;
-    try {
-      await api.deleteSku(sku.id);
-      skuQuery.reload();
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to delete SKU');
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete SKU',
+      message: `Delete SKU "${sku.name}"? This action cannot be undone and will permanently remove the SKU metadata.`,
+      onConfirm: async () => {
+        try {
+          await api.deleteSku(sku.id);
+          skuQuery.reload();
+          setToast({ isOpen: true, message: 'SKU deleted successfully', variant: 'success' });
+        } catch (error) {
+          setToast({ isOpen: true, message: error instanceof Error ? error.message : 'Failed to delete SKU', variant: 'error' });
+        }
+      },
+    });
   };
 
   const handleDownloadCSV = () => {
     const items = skuQuery.data?.items ?? [];
     if (items.length === 0) {
-      alert('No items to download');
+      setToast({ isOpen: true, message: 'No items to download', variant: 'info' });
       return;
     }
 
@@ -475,11 +500,16 @@ export default function ItemsPage() {
           )}
         </div>
 
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <span>
-            Page {skuFilters.page} of {skuQuery.data?.total_pages ?? 1}
-          </span>
-          <div className="flex gap-2">
+        <div className="flex flex-col gap-3 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-1">
+            <span>
+              Showing {(((skuFilters.page ?? 1) - 1) * (skuFilters.page_size ?? 20)) + 1}-{Math.min((skuFilters.page ?? 1) * (skuFilters.page_size ?? 20), skuQuery.data?.total ?? 0)} of {skuQuery.data?.total ?? 0} items
+            </span>
+            <span className="text-slate-500">
+              Page {skuFilters.page} of {skuQuery.data?.total_pages ?? 1}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             <button
               className="btn-secondary px-3 py-1 text-xs disabled:opacity-50"
               disabled={skuFilters.page === 1}
@@ -487,6 +517,20 @@ export default function ItemsPage() {
             >
               Previous
             </button>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500">Go to:</span>
+              <input
+                type="number"
+                min="1"
+                max={skuQuery.data?.total_pages ?? 1}
+                value={skuFilters.page}
+                onChange={(e) => {
+                  const page = Math.max(1, Math.min(parseInt(e.target.value) || 1, skuQuery.data?.total_pages ?? 1));
+                  setSkuFilters((prev) => ({ ...prev, page }));
+                }}
+                className="w-16 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-center text-white focus:border-cyan-500/50 focus:outline-none"
+              />
+            </div>
             <button
               className="btn-secondary px-3 py-1 text-xs disabled:opacity-50"
               disabled={skuFilters.page === (skuQuery.data?.total_pages ?? 1)}
@@ -600,7 +644,8 @@ export default function ItemsPage() {
             </div>
           </header>
 
-          <div className="overflow-x-auto rounded-2xl border border-white/5">
+          {/* Desktop: Table view */}
+          <div className="hidden overflow-x-auto rounded-2xl border border-white/5 md:block">
             <table className="min-w-full text-sm">
               <thead className="bg-white/5 text-left text-xs uppercase tracking-wide text-slate-400">
                 <tr>
@@ -643,11 +688,64 @@ export default function ItemsPage() {
             </table>
           </div>
 
-          <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-            <span>
-              Page {inventoryFilters.page} of {inventoryQuery.data?.total_pages ?? 1}
-            </span>
-            <div className="flex gap-2">
+          {/* Mobile: Tiles view */}
+          <div className="space-y-3 md:hidden">
+            {(inventoryQuery.data?.items ?? []).map((record) => (
+              <div
+                key={record.id}
+                className={`rounded-2xl border p-4 ${
+                  selectedInventory?.id === record.id
+                    ? 'border-cyan-500/50 bg-cyan-500/10'
+                    : 'border-white/5 bg-white/5'
+                }`}
+              >
+                <div className="mb-3 flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-xs uppercase tracking-wide text-slate-400">Store</p>
+                    <p className="text-base font-semibold text-white">{record.store?.name ?? record.store_id}</p>
+                  </div>
+                  <button
+                    className={`ml-2 rounded-xl px-3 py-1 text-xs ${
+                      selectedInventory?.id === record.id
+                        ? 'border border-cyan-500/50 text-cyan-100'
+                        : 'border border-white/10 text-slate-300'
+                    }`}
+                    onClick={() => handleInventorySelect(record)}
+                  >
+                    Inspect
+                  </button>
+                </div>
+                <div className="mb-2">
+                  <p className="text-xs uppercase tracking-wide text-slate-400">SKU</p>
+                  <p className="text-sm text-slate-200">{record.sku?.name ?? record.sku_id}</p>
+                </div>
+                <div className="mb-2">
+                  <p className="text-xs uppercase tracking-wide text-slate-400">Quantity</p>
+                  <p className="text-2xl font-bold text-white">{record.quantity}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-400">Updated</p>
+                  <p className="text-xs text-slate-400">{new Date(record.updated_at).toLocaleString()}</p>
+                </div>
+              </div>
+            ))}
+            {inventoryQuery.data?.items?.length === 0 && (
+              <div className="rounded-2xl border border-white/5 bg-white/5 p-6 text-center text-slate-400">
+                No inventory records match this filter.
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-1">
+              <span>
+                Showing {((inventoryFilters.page - 1) * inventoryFilters.page_size) + 1}-{Math.min(inventoryFilters.page * inventoryFilters.page_size, inventoryQuery.data?.total ?? 0)} of {inventoryQuery.data?.total ?? 0} items
+              </span>
+              <span className="text-slate-500">
+                Page {inventoryFilters.page} of {inventoryQuery.data?.total_pages ?? 1}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 className="btn-secondary px-3 py-1 text-xs disabled:opacity-50"
                 disabled={inventoryFilters.page === 1}
@@ -655,6 +753,20 @@ export default function ItemsPage() {
               >
                 Previous
               </button>
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500">Go to:</span>
+                <input
+                  type="number"
+                  min="1"
+                  max={inventoryQuery.data?.total_pages ?? 1}
+                  value={inventoryFilters.page}
+                  onChange={(e) => {
+                    const page = Math.max(1, Math.min(parseInt(e.target.value) || 1, inventoryQuery.data?.total_pages ?? 1));
+                    setInventoryFilters((prev) => ({ ...prev, page }));
+                  }}
+                  className="w-16 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-center text-white focus:border-cyan-500/50 focus:outline-none"
+                />
+              </div>
               <button
                 className="btn-secondary px-3 py-1 text-xs disabled:opacity-50"
                 disabled={inventoryFilters.page === (inventoryQuery.data?.total_pages ?? 1)}
@@ -700,7 +812,7 @@ export default function ItemsPage() {
                     type="number"
                     className="input"
                     value={adjustQuantity}
-                    onChange={(e) => setAdjustQuantity(Number(e.target.value))}
+                    onChange={(e) => setAdjustQuantity(e.target.value)}
                     placeholder="e.g. -5 or 10"
                   />
                   <button className="btn-primary" onClick={handleAdjust}>
@@ -748,6 +860,24 @@ export default function ItemsPage() {
           )}
         </div>
       </section>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
+
+      <Toast
+        isOpen={toast.isOpen}
+        onClose={() => setToast({ ...toast, isOpen: false })}
+        message={toast.message}
+        variant={toast.variant}
+      />
     </div>
   );
 }

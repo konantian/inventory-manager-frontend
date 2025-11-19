@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { Store, User } from '@/lib/types';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export default function StoresPage() {
   const { api, user } = useAuth();
@@ -17,6 +18,12 @@ export default function StoresPage() {
   const [staffUserId, setStaffUserId] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   const stores = useMemo(() => storesQuery.data?.items ?? [], [storesQuery.data]);
   const selectedStore: Store | null = useMemo(() => {
@@ -77,22 +84,28 @@ export default function StoresPage() {
     }
   };
 
-  const handleDeleteStore = async (store: Store) => {
+  const handleDeleteStore = (store: Store) => {
     if (!api) return;
-    if (!confirm(`Delete ${store.name}?`)) return;
-    setError(null);
-    setMessage(null);
-    try {
-      await api.deleteStore(store.id);
-      storesQuery.reload();
-      setMessage('Store deleted.');
-      if (selectedStore?.id === store.id) {
-        setSelectedStoreId(null);
-        setStoreStaff([]);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete store');
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Store',
+      message: `Delete store "${store.name}"? This action cannot be undone.`,
+      onConfirm: async () => {
+        setError(null);
+        setMessage(null);
+        try {
+          await api.deleteStore(store.id);
+          storesQuery.reload();
+          setMessage('Store deleted.');
+          if (selectedStore?.id === store.id) {
+            setSelectedStoreId(null);
+            setStoreStaff([]);
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to delete store');
+        }
+      },
+    });
   };
 
   const handleAddStaff = async () => {
@@ -272,6 +285,17 @@ export default function StoresPage() {
           )}
         </div>
       </section>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }
