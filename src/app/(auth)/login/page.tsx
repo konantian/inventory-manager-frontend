@@ -3,11 +3,9 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
-import { useServer } from '@/context/server-context';
 
 export default function LoginPage() {
   const { login, token, loading } = useAuth();
-  const { selectedServer, setSelectedServer, servers } = useServer();
   const router = useRouter();
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('adminadmin');
@@ -63,26 +61,6 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="space-y-2">
-            <label className="label" htmlFor="server">
-              API Server
-            </label>
-            <select
-              id="server"
-              className="input cursor-pointer"
-              value={selectedServer.id}
-              onChange={(e) => {
-                const server = servers.find((s) => s.id === e.target.value);
-                if (server) setSelectedServer(server);
-              }}
-            >
-              {servers.map((server) => (
-                <option key={server.id} value={server.id}>
-                  {server.name} ({server.url})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
             <label className="label" htmlFor="username">
               Username
             </label>
@@ -137,4 +115,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

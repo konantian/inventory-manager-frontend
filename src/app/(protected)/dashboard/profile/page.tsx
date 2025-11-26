@@ -2,12 +2,10 @@
 
 import { FormEvent, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
-import { useServer } from '@/context/server-context';
 import { useInventoryUpdates } from '@/context/inventory-updates-context';
 
 export default function ProfilePage() {
   const { user, api, refreshProfile } = useAuth();
-  const { selectedServer } = useServer();
   const { connected } = useInventoryUpdates();
   const [form, setForm] = useState({ old_password: '', new_password: '' });
   const [message, setMessage] = useState<string | null>(null);
@@ -82,14 +80,6 @@ export default function ProfilePage() {
             </div>
             <p className="text-sm font-semibold text-white">{connected ? 'Live updates active' : 'Reconnecting…'}</p>
           </div>
-          <div className="space-y-2 rounded-xl border border-white/5 bg-slate-900/50 p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs uppercase tracking-wide text-slate-500">API Server</span>
-              <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400" />
-            </div>
-            <p className="text-sm font-semibold text-white">{selectedServer.name}</p>
-            <p className="text-xs font-mono text-slate-400">{selectedServer.url}</p>
-          </div>
         </div>
       </section>
 
@@ -133,4 +123,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
